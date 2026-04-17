@@ -83,10 +83,11 @@ exports.getProfiles  = async (req, res)=>{
 
         const topCountry = nationData.country.reduce((max, curr)=> curr.probability > max.probability ? curr : max);
 
+        
         // save to DB
         const profile = await prisma.Profile.create({
             data: {
-                id: require("uuid").v7(),
+                
                 name,
                 gender: genderData.gender,
                 gender_probability: genderData.probability,
