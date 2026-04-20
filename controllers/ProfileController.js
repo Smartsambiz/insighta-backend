@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { v7: uuidv7 } = require('uuid');
+
 const {prisma }= require("./dbController");
 const {parseNLQuery } = require("../utils/nlpParser");
 
@@ -89,11 +89,12 @@ exports.getProfiles  = async (req, res)=>{
 
         const topCountry = nationData.country.reduce((max, curr)=> curr.probability > max.probability ? curr : max);
 
-        
+        const { v7: uuidv7 } = await import('uuid');
+        const id = uuidv7();
         // save to DB
         const profile = await prisma.Profile.create({
             data: {
-                id: uuidv7(),
+                id: id,
                 name,
                 gender: genderData.gender,
                 gender_probability: genderData.probability,
