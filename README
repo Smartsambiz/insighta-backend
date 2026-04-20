@@ -1,53 +1,124 @@
 # Insighta Labs — Intelligence Query Engine
 
-Hey there! This is our little project for handling natural language queries on profiles. We're using a straightforward rule-based parser—no fancy AI or LLMs here. Basically, when you hit the `/api/profiles/search?q=` endpoint with some plain English, it tries to figure out what filters you mean by matching against patterns and keywords.
+Hey everyone, welcome to our little project! This is a backend system we built for querying and slicing up demographic profile data. You can use structured filters or even plain English queries to get what you need. Basically, it turns a simple profile storage API into something more powerful that helps marketing folks, product teams, and analysts pull out useful insights without too much hassle.
 
-## What We Support
+## What It Does
 
-### Gender
-You can ask for males or females. Say "males" or "male" to filter by gender=male, same for females. If you mention both, like "male and female," we skip the gender filter altogether.
+We've packed in some cool features here. You can filter users in advanced ways by combining different criteria to get exactly the segment you're after. Sorting is easy—order by age, when they were created, or those probability scores. Pagination keeps things snappy even with big datasets. And the star of the show: natural language querying. Just type in plain English, and it converts that into structured filters using good old rule-based logic—no AI or LLMs involved.
+## The Database Setup
 
-### Age Groups
-- Kids or children? That's age_group=child.
-- Teens, teenagers, etc.? age_group=teenager.
-- Adults? age_group=adult.
-- Seniors or elderly? age_group=senior.
+Our profiles table is set up like this:
 
-### Age Ranges
-- "Young" sets min_age to 16 and max_age to 24 (just for parsing, not stored).
-- Stuff like "above 30," "over 30," or "older than 30" means min_age=30.
-- "Below 20," "under 20," "younger than 20" gives max_age=20.
-- "Aged 25" means exactly min_age=25 and max_age=25.
+- id: A UUID v7 as the primary key.
+- name: A unique full name, stored as VARCHAR.
+- gender: Either "male" or "female" as VARCHAR.
+- gender_probability: A float for confidence score.
+- age: Exact age as an integer.
+- age_group: VARCHAR with options like child, teenager, adult, senior.
+- country_id: A two-letter ISO code (like NG or KE) as VARCHAR.
+- country_name: The full country name as VARCHAR.
+- country_probability: Another float for confidence.
+- created_at: A timestamp that's auto-generated.
+## API Endpoints
 
-### Countries
-Use "from" followed by the country name. For example, "from nigeria" turns into country_id=NG. We support over 40 countries, mostly African plus some international ones.
+### 1. Getting Profiles (with Filtering, Sorting, and Pagination)
 
-## Some Examples
-Here's how queries translate to filters:
+Hit this endpoint: GET /api/profiles
+
+You can tweak it with query params like gender, age_group, country_id, min_age, max_age, min_gender_probability, min_country_probability. Sort by age, created_at, or gender_probability, and choose asc or desc. Page defaults to 1, limit to 10 (up to 50).
+
+For example: GET https://datapersistent-api.vercel.app/api/profiles?gender=male&country_id=NG&sort_by=age&order=desc
+
+Response might look like:
+
+{
+  "status": "success",
+  "page": 1,
+  "limit": 10,
+  "total": 44,
+  "data": [
+    {
+      "id": "d2a59de9-4746-49ee-9428-f78c88fef7ac",
+      "name": "Tunde Barro",
+      "gender": "male",
+      "gender_probability": 0.79,
+      "age": 84,
+      "age_group": "senior",
+      "country_id": "NG",
+      "country_name": "Nigeria",
+      "country_probability": 0.47,
+      "created_at": "2026-04-20T16:48:20.914Z"
+    }
+  ]
+}
+
+### 2. Natural Language Search (The Fun Part)
+
+This is the core feature: GET /api/profiles/search?q=<query>
+
+It takes plain English and turns it into filters.
+
+Example: GET /api/profiles/search?q=young females from nigeria
+
+Response could be:
+
+{
+  "status": "success",
+  "page": 1,
+  "limit": 50,
+  "total": 5,
+  "data": [
+    {
+      "id": "bab26115-2d6d-40ae-b209-2b1e784f628f",
+      "name": "Rokhaya Konaté",
+      "gender": "female",
+      "age": 17,
+      "age_group": "teenager",
+      "country_id": "NG"
+    }
+  ]
+}
+## How the Natural Language Stuff Works
+
+We use a straightforward, rule-based parser to figure out what you mean. No fancy AI—just patterns and keywords.
+
+For gender: "male" or "males" for male, "female" or "females" for female. If you say both, we ignore it.
+
+Age groups: "child" or "kids" maps to child, "teen" or "teenager" to teenager, "adult" to adult, "senior" or "elderly" to senior.
+
+Age ranges: "young" means 16-24, "above 30" or "over 30" sets min_age to 30, "below 20" or "under 20" to max_age 20, "aged 25" for exact 25.
+
+Countries: Just "from <country>", like "from nigeria" to NG.
+## Some Query Examples
 
 - "young males" → gender=male, min_age=16, max_age=24
 - "females above 30" → gender=female, min_age=30
 - "people from angola" → country_id=AO
 - "adult males from kenya" → gender=male, age_group=adult, country_id=KE
 - "male and female teenagers above 17" → age_group=teenager, min_age=17
+## Things to Watch Out For
 
-## How It Actually Works
-1. We lowercase and trim your query.
-2. Look for gender words using regex like `\bmales?\b`.
-3. Match age group words from a simple dictionary.
-4. Pull out age modifiers (above, over, below, etc.) with more regex.
-5. Grab the country after "from" and match it to our country list.
-6. If nothing matches, we just say "Unable to interpret query."
+It's not perfect. No spell-checking, so "nigerla" won't work. Synonyms like "guys" or "ladies" aren't supported. Can't do ranges like "between 20 and 30." Multiple countries? Nope. Abbreviations in queries don't parse. And some vague phrases might trip it up.
+## Error Handling
 
----
+Errors come back like this:
 
-## Stuff We Haven't Figured Out Yet
+{
+  "status": "error",
+  "message": "<error message>"
+}
 
-- No spell-checking, so "nigerla" or "femal" won't work.
-- Synonyms aren't covered—things like "guys," "women," or "kids" aren't recognized.
-- Can't handle ranges like "between 20 and 30"; only "above X" or "below X."
-- Countries with accents, like "Côte d'Ivoire," need to be written as "ivory coast."
-- Vague stuff like "old people" doesn't map (try "seniors" instead).
-- No smart guessing—"young adults" might not combine age_group=adult with the young range properly.
-- Multiple countries? Nope, "from nigeria or kenya" isn't supported.
-- Abbreviations like "NG" or "KE" in queries aren't parsed as countries.
+Common ones: 400 for bad requests, 422 for wrong types, 404 if not found, 500/502 for server issues. For bad queries, it's "Unable to interpret query."
+## Getting It Running
+
+Install deps: npm install
+
+Dev server: npm run dev
+
+Seed the DB: npm run seed
+## Performance Notes
+
+We use pagination to keep responses manageable. Filters are applied right at the query level to skip extra work. It handles over 2000 records just fine.
+## Wrapping Up
+
+This turns a basic API into a real intelligence engine. You get structured filtering, quick data pulls, and natural language input—all with solid, rule-based logic. Hope it helps with your insights!
