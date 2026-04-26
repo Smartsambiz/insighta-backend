@@ -39,7 +39,8 @@ app.use(cors({
 app.use(express.json());
 
 
-
+app.use('/auth', authLimiter, authRoutes);
+app.use('/api', apiLimiter, profileRoutes);
 
 app.get('/',(req, res)=>{
     res.send("Server is live")
