@@ -28,7 +28,7 @@ router.get('/github', (req, res)=>{
         client_id: process.env.GITHUB_CLIENT_ID,
         redirect_uri: `${process.env.BACKEND_URL}/auth/github/callback`,
         scope: 'read:user user:email',
-        sate,
+        state,
     });
     res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
