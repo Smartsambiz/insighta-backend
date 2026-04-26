@@ -1,12 +1,9 @@
 require('dotenv').config();
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-const profileRoutes = require("./routes/profileRoutes");
-const authRoutes = require('./routes/authRoutes');
 
 // ── Logging middleware ──
 app.use((req, res, next) => {
@@ -31,27 +28,20 @@ const apiLimiter = rateLimit({
   message: { status: 'error', message: 'Too many requests' }
 });
 
-app.use(cors({
-    origin: "*"
-}));
-
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-
-app.use('/auth', authLimiter, authRoutes);
-app.use('/api', profileRoutes);
+// ── Routes ──
+const authRoutes = require('./routes/authRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 
 app.use('/auth', authLimiter, authRoutes);
 app.use('/api', apiLimiter, profileRoutes);
 
-app.get('/',(req, res)=>{
-    res.send("Server is live")
-});
+app.get('/', (req, res) => res.send('Server is live'));
 
-
-
-app.listen(PORT, ()=>{
-    console.log(`Server is running on port ${PORT}`);
-})
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
 
 module.exports = app;
