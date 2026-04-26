@@ -1,12 +1,20 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
+const profileController = require('../controllers/ProfileController');
+const { authenticate, requireAdmin, requireApiVersion } = require('../middleware/auth');
 
-const profileController = require("../controllers/ProfileController");
+// Apply to ALL profile routes
+router.use(authenticate);
+router.use(requireApiVersion);
 
+// Public to all authenticated users
 router.get('/profiles/search', profileController.searchProfiles);
-router.post('/profiles', profileController.getProfiles);
-router.get('/profiles/:id', profileController.getSingleProfiles);
+router.get('/profiles/export', profileController.exportProfiles);
 router.get('/profiles', profileController.getAllProfilesplusFilter);
-router.delete('/profiles/:id', profileController.deleteProfile);
+router.get('/profiles/:id', profileController.getSingleProfiles);
+
+// Admin only
+router.post('/profiles', requireAdmin, profileController.getProfiles);
+router.delete('/profiles/:id', requireAdmin, profileController.deleteProfile);
 
 module.exports = router;

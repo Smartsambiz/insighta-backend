@@ -206,14 +206,23 @@ exports.getAllProfilesplusFilter = async (req, res)=>{
                 skip: offset,
                 take: parsedLimit,
             })
-        ])
-    
-        res.status(200).json({
-            status: "success",
-            page: parsedPage,
-            limit: parsedLimit,
-            total,
-            data: profiles
+        ]);
+        const total_pages = Math.ceil(total / parsedLimit);
+        const baseUrl = '/api/profiles';
+        const buildUrl = (p) => `${baseUrl}?page=${p}&limit=${parsedLimit}`;
+
+        return res.status(200).json({
+        status: 'success',
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        total_pages,
+        links: {
+            self: buildUrl(parsedPage),
+            next: parsedPage < total_pages ? buildUrl(parsedPage + 1) : null,
+            prev: parsedPage > 1 ? buildUrl(parsedPage - 1) : null,
+        },
+        data: profiles
         });
     } catch (error) {
         console.error(error);
@@ -298,3 +307,55 @@ exports.deleteProfile = async (req, res)=>{
     };
 
 }
+
+
+// ── GET /api/profiles/export?format=csv ──
+exports.exportProfiles = async (req, res) => {
+  try {
+    const { format = 'csv', gender, age_group, country_id,
+      min_age, max_age, min_gender_probability, min_country_probability,
+      sort_by = 'created_at', order = 'asc' } = req.query;
+
+    if (format !== 'csv') {
+      return res.status(400).json({ status: 'error', message: 'Only csv format is supported' });
+    }
+
+    const where = {};
+    if (gender) where.gender = gender.toLowerCase();
+    if (age_group) where.age_group = age_group.toLowerCase();
+    if (country_id) where.country_id = country_id.toUpperCase();
+    if (min_age || max_age) {
+      where.age = {};
+      if (min_age) where.age.gte = parseInt(min_age);
+      if (max_age) where.age.lte = parseInt(max_age);
+    }
+
+    const profiles = await prisma.profile.findMany({
+      where,
+      orderBy: { [sort_by]: order }
+    });
+
+    const columns = ['id','name','gender','gender_probability','age','age_group',
+                     'country_id','country_name','country_probability','created_at'];
+
+    const csv = [
+      columns.join(','),
+      ...profiles.map(p =>
+        columns.map(col => {
+          const val = p[col];
+          // Wrap in quotes if contains comma
+          return String(val ?? '').includes(',') ? `"${val}"` : val;
+        }).join(',')
+      )
+    ].join('\n');
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="profiles_${timestamp}.csv"`);
+    return res.send(csv);
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ status: 'error', message: 'Server error' });
+  }
+};
