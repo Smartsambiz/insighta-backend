@@ -9,7 +9,8 @@
     "migrate": "prisma migrate dev",
     "push": "prisma db push",
     "generate": "prisma generate",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
