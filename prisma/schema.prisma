@@ -57,3 +57,8 @@ model RefreshToken {
   created_at  DateTime  @default(now())
 }
 
+model OAuthState {
+  state      String   @id
+  created_at DateTime @default(now())
+}
+

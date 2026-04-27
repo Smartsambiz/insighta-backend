@@ -12,17 +12,17 @@ const {
 } = require("../utils/tokens");
 const { ref } = require("process");
 
-// Store state temporarily in memory (short lived, just for OAuh)
-const pendingStates = new Set();
+
 
 // GET /auth/github
 // Redirect browser to Github OAuth page
 router.get('/github', (req, res)=>{
     const state = crypto.randomBytes(16).toString('hex');
-    pendingStates.add(state);
+     await prisma.oAuthState.create({
+      data: { state }
+    });
 
-    //Auto-clean state after 10 minutes
-    setTimeout(()=> pendingStates.delete(state), 10* 60 * 1000);
+    
 
     const params = new URLSearchParams({
         client_id: process.env.GITHUB_CLIENT_ID,
@@ -36,15 +36,19 @@ router.get('/github', (req, res)=>{
 // GET /auth/github/callback
 router.get('/github/callback', async(req, res)=>{
     try{
-        const {code, state, code_verifier}= req.query;;
+        const {code, state}= req.query;;
 
-        // Validate state (prevent  CSRF)
-        if(!pendingStates.has(state)){
-            return res.status(400).json({status: 'error', message: 'Invalid state parameter'});
+        // Validate state from DB
+        const storedState = await prisma.oAuthState.findUnique({
+        where: { state }
+        });
 
+         if (!storedState) {
+        return res.status(400).json({ status: 'error', message: 'Invalid state parameter' });
         }
-        pendingStates.delete(state);
 
+        // Delete used state immediately
+        await prisma.oAuthState.delete({ where: { state } });
         // Exchange code for GitHub access token
         const tokenRes = await axios.post(
             'https://github.com/login/oauth/access_token',
