@@ -16,7 +16,7 @@ const { ref } = require("process");
 
 // GET /auth/github
 // Redirect browser to Github OAuth page
-router.get('/github', (req, res)=>{
+router.get('/github', async(req, res)=>{
     const state = crypto.randomBytes(16).toString('hex');
      await prisma.oAuthState.create({
       data: { state }
