@@ -40,7 +40,7 @@ router.get('/github/callback', async(req, res)=>{
 
         // Validate state from DB
         const storedState = await prisma.oAuthState.findUnique({
-        where: { state }
+            where: { state }
         });
 
          if (!storedState) {
@@ -131,7 +131,7 @@ router.get('/github/callback', async(req, res)=>{
         });
 
         // Check if this is a CLI callback (has code_verifier) or browser
-        const isCLI = !!code_verifier;
+        const isCLI = !!req.query.code_verifier;
 
         if(isCLI){
             // Return JSON for CLI to consume
