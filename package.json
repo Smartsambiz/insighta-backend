@@ -10,7 +10,7 @@
     "push": "prisma db push",
     "generate": "prisma generate",
     "seed": "node seed.js",
-    "postinstall": "prisma generate"
+    "postinstall": "npx prisma generate"
   },
   "keywords": [],
   "author": "",
