@@ -236,6 +236,99 @@ router.post('/logout', async (req, res) => {
   }
 });
 
+// ── POST /auth/cli/token ──
+// CLI sends the code here, backend exchanges it with GitHub
+router.post('/auth/cli/token', async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ status: 'error', message: 'Code required' });
+    }
+
+    // Exchange code for GitHub token using CLI OAuth app credentials
+    const tokenRes = await axios.post(
+      'https://github.com/login/oauth/access_token',
+      {
+        client_id: process.env.GITHUB_CLI_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLI_CLIENT_SECRET,
+        code,
+        redirect_uri: 'http://localhost:9876/callback',
+      },
+      { headers: { Accept: 'application/json' } }
+    );
+
+    const githubToken = tokenRes.data.access_token;
+    if (!githubToken) {
+      return res.status(502).json({ status: 'error', message: 'GitHub token exchange failed' });
+    }
+
+    // Get GitHub user info
+    const [userRes, emailRes] = await Promise.all([
+      axios.get('https://api.github.com/user', {
+        headers: { Authorization: `Bearer ${githubToken}` }
+      }),
+      axios.get('https://api.github.com/user/emails', {
+        headers: { Authorization: `Bearer ${githubToken}` }
+      })
+    ]);
+
+    const githubUser = userRes.data;
+    const primaryEmail = emailRes.data.find(e => e.primary)?.email || null;
+
+    // Create or update user
+    let user = await prisma.user.findUnique({
+      where: { github_id: String(githubUser.id) }
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          id: uuidv7(),
+          github_id: String(githubUser.id),
+          username: githubUser.login,
+          email: primaryEmail,
+          avatar_url: githubUser.avatar_url,
+          role: 'analyst',
+          last_login_at: new Date(),
+        }
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { username: githubUser.login, avatar_url: githubUser.avatar_url, last_login_at: new Date() }
+      });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({ status: 'error', message: 'Account deactivated' });
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    await prisma.refreshToken.create({
+      data: {
+        id: uuidv7(),
+        token: refreshToken,
+        user_id: user.id,
+        expires_at: new Date(Date.now() + 5 * 60 * 1000),
+      }
+    });
+
+    return res.json({
+      status: 'success',
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: { id: user.id, username: user.username, role: user.role }
+    });
+
+  } catch (err) {
+    console.error('CLI token error:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Auth failed' });
+  }
+});
+
 module.exports = router;
 
 
