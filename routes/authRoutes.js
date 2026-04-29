@@ -262,6 +262,7 @@ router.post('/cli/token', async (req, res) => {
     if (!githubToken) {
          console.error("GitHub Error Response:", tokenRes.data);
       return res.status(502).json({ status: 'error', message: 'GitHub token exchange failed' });
+        console.error("GitHub Error Response:", tokenRes.data);
     }
 
     // Get GitHub user info
