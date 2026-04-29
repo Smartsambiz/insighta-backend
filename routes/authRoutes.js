@@ -260,6 +260,7 @@ router.post('/cli/token', async (req, res) => {
 
     const githubToken = tokenRes.data.access_token;
     if (!githubToken) {
+         console.error("GitHub Error Response:", tokenRes.data);
       return res.status(502).json({ status: 'error', message: 'GitHub token exchange failed' });
     }
 
