@@ -238,7 +238,7 @@ router.post('/logout', async (req, res) => {
 
 // ── POST /auth/cli/token ──
 // CLI sends the code here, backend exchanges it with GitHub
-router.post('/auth/cli/token', async (req, res) => {
+router.post('/cli/token', async (req, res) => {
   try {
     const { code } = req.body;
 
